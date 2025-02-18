@@ -55,7 +55,8 @@ int Negamax(Board b, int depth, int alpha, int beta, int color) {
                 FlipDisks(m, &new_board, color, 0, 1);
                 PlaceOrFlip(m, &new_board, color);
                 
-                int score = -cilk_spawn(Negamax(new_board, depth - 1, -beta, -alpha, OTHERCOLOR(color)));
+                int score;
+                cilk_spawn score = -Negamax(new_board, depth - 1, -beta, -alpha, OTHERCOLOR(color));
                 cilk_sync;
                 
                 best_score.calc_max(score);
