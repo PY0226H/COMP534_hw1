@@ -30,6 +30,8 @@ void PrintBoard(Board b);
 int EnumerateLegalMoves(Board b, int color, Board *legal_moves);
 int FlipDisks(Move m, Board *b, int color, int verbose, int domove);
 void PlaceOrFlip(Move m, Board *b, int color);
+void HumanTurn(Board *b, int color);
+void EndGame(Board b);
 
 // Simple board evaluation function
 int EvaluateBoard(Board *b, int color) {
@@ -53,7 +55,7 @@ int Negamax(Board b, int depth, int alpha, int beta, int color) {
                 FlipDisks(m, &new_board, color, 0, 1);
                 PlaceOrFlip(m, &new_board, color);
                 
-                int score = -cilk_spawn Negamax(new_board, depth - 1, -beta, -alpha, OTHERCOLOR(color));
+                int score = -cilk_spawn(Negamax(new_board, depth - 1, -beta, -alpha, OTHERCOLOR(color)));
                 cilk_sync;
                 
                 best_score.calc_max(score);
