@@ -1,52 +1,74 @@
-NOWARN=-wd3946 -wd3947 -wd10010
+# Choose the C++ compiler (Intel C++) and add flags
+CXX       = icpc
+CILK_FLAGS= -std=c++11
 
-EXEC=othello
-OBJ =  $(EXEC) $(EXEC)-debug $(EXEC)-serial
+# Suppress certain warnings
+NOWARN    = -wd3946 -wd3947 -wd10010
 
-# flags
-OPT=-O2 -g $(NOWARN)
-DEBUG=-O0 -g $(NOWARN)
+EXEC      = othello
 
-# --- set number of workers to non-default value
+# We will produce these targets:
+OBJ       = $(EXEC) $(EXEC)-debug $(EXEC)-serial
+
+# Common compilation flags:
+OPT       = -O2 -g $(NOWARN) $(CILK_FLAGS)
+DEBUG     = -O0 -g $(NOWARN) $(CILK_FLAGS)
+
+# If the user specifies "make runp W=n", we set CILK_NWORKERS=n
 ifneq ($(W),)
-XX=CILK_NWORKERS=$(W)
+XX        = CILK_NWORKERS=$(W)
 endif
 
-I=default_input
+# Default input file
+I         = default_input
 
+# ------------------------------------------------------------------------
+# Build targets
+# ------------------------------------------------------------------------
 all: $(OBJ)
 
-# build the debug parallel version of the program
+# Debug parallel build
 $(EXEC)-debug: $(EXEC).cpp
-	icpc $(DEBUG) -o $(EXEC)-debug $(EXEC).cpp -lrt
+	$(CXX) $(DEBUG) -o $(EXEC)-debug $(EXEC).cpp -lrt
 
-
-# build the serial version of the program
+# Serial build (no Cilk runtime overhead)
 $(EXEC)-serial: $(EXEC).cpp
-	icpc $(OPT) -o $(EXEC)-serial -cilk-serialize $(EXEC).cpp -lrt
+	$(CXX) $(OPT) -cilk-serialize -o $(EXEC)-serial $(EXEC).cpp -lrt
 
-# build the optimized parallel version of the program
+# Optimized parallel build
 $(EXEC): $(EXEC).cpp
-	icpc $(OPT) -o $(EXEC) $(EXEC).cpp -lrt
+	$(CXX) $(OPT) -o $(EXEC) $(EXEC).cpp -lrt
 
-#run the optimized program in parallel
-runp:
-	@echo use make runp W=nworkers I=input_file
-	$(XX) ./$(EXEC)  < $(I)
+# ------------------------------------------------------------------------
+# Run targets
+# ------------------------------------------------------------------------
 
-#run the serial version of your program
+# Run the optimized parallel version
+# Usage: make runp W=4 I=some_input_file
+runp: $(EXEC)
+	@echo "Running parallel version: workers=$(W), input=$(I)"
+	$(XX) ./$(EXEC) < $(I)
+
+# Run the serial version
+# Usage: make runs I=some_input_file
 runs: $(EXEC)-serial
-	@echo use make runs I=input_file 
+	@echo "Running serial version with input=$(I)"
 	./$(EXEC)-serial < $(I)
 
-#run the optimized program in with cilkscreen
+# Run with cilkscreen (data race detection)
+# Usage: make screen I=some_input_file
 screen: $(EXEC)
+	@echo "Running under cilkscreen using input=screen_input"
 	cilkscreen ./$(EXEC) < screen_input
 
-#run the optimized program in with cilkview
+# Run with cilkview (performance profiling)
+# Usage: make view I=some_input_file
 view: $(EXEC)
-	cilkview ./$(EXEC) < $I
+	@echo "Running under cilkview using input=$(I)"
+	cilkview ./$(EXEC) < $(I)
 
-
+# ------------------------------------------------------------------------
+# Cleanup
+# ------------------------------------------------------------------------
 clean:
 	/bin/rm -f $(OBJ) 
